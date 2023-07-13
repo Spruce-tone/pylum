@@ -45,7 +45,9 @@
 # FROM ubuntu:20.04
 FROM ubuntu:latest
 LABEL maintainer='spruce'
-RUN apt-get update -y; apt-get upgrade -y; apt-get install -y wget \
+RUN apt-get update -y \
+    && apt-get upgrade -y \
+    && apt-get install -y wget \
     && wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
     && bash Miniconda3-latest-Linux-x86_64.sh -b -p /miniconda \
     && rm Miniconda3-latest-Linux-x86_64.sh

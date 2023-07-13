@@ -7,6 +7,7 @@ services:
         dockerfile: Dockerfile
     volumes:
     - ".:/spruce"
+    - "C:/Program Files/Lumerical/v221/api/python:/opt/lumerical/v221/api/python"
     container_name: lumerical
     ports:
     - "8888:8888"
