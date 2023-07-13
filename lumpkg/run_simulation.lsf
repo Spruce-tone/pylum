@@ -1,0 +1,67 @@
+# import function and variables
+init;
+
+# define parameters
+lambda = step_space(450*nm, 700*nm, 5*nm);
+frq_point = length(lambda);
+
+# Meta atom structures
+height = 600*nm;
+unitcell = 200*nm;
+dia = step_space(50*nm, 190*nm, 10*nm);
+total = length(height)*length(unitcell)*length(dia);
+
+# naming
+src_name = 'source';
+
+# import material library
+# load_material('TiO2');
+load_mat_library();
+
+# make structure
+add_rect(name='substrate', 
+         x=0, y=0,
+         material='SiO2 (Glass) - Palik');
+add_circ(name='pillar', 
+         x=0, y=0,
+         material='TiO2');
+
+
+# add plane wave source;
+add_planewave(sname=src_name,
+             inj_axis='z-axis',
+             direc='Forward',
+             pangl=0, phase=0,
+             x=0, y=0, z=-200*nm,
+             wst=lambda(1),
+             wed=lambda(frq_point));
+
+# add monitor            
+add_monitor(mname='transmission',
+            mtype='2D Z-normal',
+            ov_glob_m=1,
+            iswlinspace=1,
+            frq_list=frq_point,
+            issrclim=1,
+            x=0, y=0);
+
+# set FDTD mesh
+set_mesh(dim='3D',
+        xlb='Periodic', xub='Periodic',
+        ylb='Periodic', yub='Periodic',
+        zlb='PML', zub='PML',
+        x=0, y=0,
+        mesh_type='auto non-uniform',
+        mesh_acc=2,
+        dt_stb_factor=0.95,
+        sim_time=1000e-14,
+        auto_shut_min=0.5e-4);
+
+
+screening(unitcell=unitcell,
+height=height,
+src_name='source',
+dia=dia,
+frq_point=frq_point,
+lambda=lambda,
+total=total);

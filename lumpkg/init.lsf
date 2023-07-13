@@ -1,0 +1,264 @@
+switchtolayout;
+deleteall;
+
+um = 1e-6;
+nm = 1e-9;
+
+function step_space(lb, ub, steps) {
+    num_points = floor((ub - lb) / steps) + 1;
+    array = linspace(0, num_points-1, num_points);
+    array = array * steps + lb;
+    return array;
+}
+
+
+function pathjoin(path_cell){
+    path = '';
+    end_num = length(path_cell);
+    
+    for (x=1:end_num){
+        if (x!=end_num){
+            path = path + path_cell{x} + '/';
+        } else {
+            path = path + path_cell{x};
+        }
+    }
+    return path;
+}
+
+
+function parent_dir(path, moves) {
+    splitpath = splitstring(path, '/');
+    end_num = length(splitpath)-moves;
+    parent = pathjoin(splitpath{1:end_num});
+    return parent;
+}
+
+
+function get_lib_path() {
+    parent = parent_dir(pwd, 1);
+    mat_lib_path = pathjoin({parent, 'material_lib'});
+    return mat_lib_path;   
+        
+}
+
+function load_material(mat_name){
+    if (!materialexists(mat_name)){
+        nm = 1e-9;
+        fpath = pathjoin({get_lib_path(), mat_name+'.txt'});
+        
+        sampled = readdata(fpath);
+        s=size(sampled);
+        sampled2 = matrix(s(1),2);
+        sampled2(1:s(1),1) = c/(sampled(1:s(1),1)*nm);# Set frequencies.
+        sampled2(1:s(1),2) = ( sampled(1:s(1),2) + 1i*sampled(1:s(1),3) )^2; #Set permittivites. (square of the refractive indices)
+        temp = addmaterial('Sampled data');
+        setmaterial(temp, 'name', mat_name);
+        setmaterial(mat_name, 'sampled data', sampled2);
+        }    
+}
+
+function load_mat_library() {
+    lib_path = get_lib_path();
+    mat_list = splitstring(dir(lib_path), endl);
+    end_num = length(mat_list);
+    
+    for (idx=1:end_num){
+        if (findstring(mat_list{idx}, '.txt')!=-1){
+            fpath = pathjoin({lib_path, mat_list{idx}});
+   
+            if (fileexists(fpath)) {
+                mat_name = splitstring(mat_list{idx}, '.');
+                mat_name = mat_name{1};
+                load_material(mat_name);
+            }
+            }
+    }
+}
+
+
+
+function add_planewave(sname, inj_axis, direc, pangle, 
+phase, x, y, z, wst, wed) {
+    addplane;
+    set('name', sname); 
+    set('injection axis', inj_axis);
+    set('direction', direc); 
+    set('polarization angle', pangle);
+    set('phase', phase);
+    set('x', x); 
+    set('y', y); 
+    set('z', z); 
+    set('wavelength start', wst);
+    set('wavelength stop', wed);
+}
+
+function add_monitor(mname, mtype,
+    ov_glob_m, iswlinspace, frq_list,
+    issrclim, x, y) {
+    addprofile;
+    set('name', mname); 
+    set('monitor type', mtype);
+    set('override global monitor settings', ov_glob_m); 
+    set('use wavelength spacing', iswlinspace);
+    set('frequency points', frq_list); 
+    set('use source limits', issrclim);
+    set('x', x); 
+    set('y', y); 
+}
+
+function set_mesh(dim, xlb, xub,
+ylb, yub, zlb, zub, x, y,
+mesh_type, mesh_acc, dt_stb_factor,
+sim_time, auto_shut_min){
+    addfdtd;
+    select('FDTD');
+    set('dimension', dim);
+    set('x min bc', xlb);
+    set('x max bc', xub);
+    set('y min bc', ylb);
+    set('y max bc', yub);
+    set('z min bc', zlb);
+    set('z max bc', zub);
+    set('x', x); 
+    set('y', y); 
+    set('mesh type', mesh_type);
+    set('mesh accuracy', mesh_acc);
+    set('dt stability factor', dt_stb_factor);
+    set('simulation time', sim_time);
+    set('auto shutoff min', auto_shut_min);
+}
+
+function add_rect(name, x, y, material) {
+    addrect;
+    set('name', name);
+    set('x', x); 
+    set('y', y); 
+    set('material', material);   
+}
+
+function add_circ(name, x, y, material){
+    addcircle;
+    set('name', name);
+    set('x', x); 
+    set('y', y); 
+    set('material', material);      
+}
+
+
+function unitcell_dependency(unitcell, src_name){
+    # unit cell size dependent model setting
+    setnamed(src_name, 'x span', unitcell*2);
+    setnamed(src_name, 'y span', unitcell*2);
+    setnamed('transmission', 'x span', unitcell*2);
+    setnamed('transmission', 'y span', unitcell*2);
+    setnamed('FDTD', 'x span', unitcell);
+    setnamed('FDTD', 'y span', unitcell);
+    setnamed('substrate', 'x span', unitcell*2);
+    setnamed('substrate', 'y span', unitcell*2);
+}
+
+
+function height_dependency(height){
+    # height size dependent model setting
+    um = 1e-6;
+    nm = 1e-9;
+    
+    setnamed('FDTD', 'z max', height + 1*um);
+    setnamed('FDTD', 'z min', -1*um);
+    setnamed('transmission', 'z max', height + 200*nm);
+    
+    setnamed('pillar', 'z min', 0); 
+    setnamed('pillar', 'z max', height);
+    
+    setnamed('substrate', 'z max', 0);
+    setnamed('substrate', 'z min', -2*um);
+
+}
+
+
+
+function screening(unit_cell, height, src_name, 
+dia, frq_point, lambda, total) {
+    ucell_len = length(unit_cell);
+    hlen = length(height);
+    nm = 1e-9;
+    um = 1e-6;
+    
+    for (idx=1:ucell_len){
+        U = unit_cell(idx);
+        unitcell_dependency(unitcell=U, src_name=src_name);
+        
+        for (jdx=1:hlen) {
+            H = height(jdx);
+            height_dependency(H);
+            
+            ?'Running reference';
+            select('pillar');
+            set('enabled', 0);
+            run;
+           
+            T = transmission('transmission'); # get transmission spectra
+            REF_phase_Ex = matrix(frq_point,1);
+            REF_phase_Ey = matrix(frq_point,1);
+            REF_Ex = matrix(frq_point,1);
+            REF_Ey = matrix(frq_point,1);
+            REF_Ez = matrix(frq_point,1);
+            
+            for (i = 1:frq_point) {
+                E = farfieldexact('transmission',0,0,1e-4,i); # For normalization, record farfield eletric field in the case of no structure.
+                REF_Ex(i) = E(1); REF_Ey(i) = E(2);  
+            }
+            matlabsave("REF_phase"+"_U="+num2str(unitcell(idx)/nm),lambda,REF_Ex,REF_Ey,T,H,U);	    
+            
+            switchtolayout;    
+            
+            select('pillar');
+            set('enabled', 1);
+            
+            # PARAMETERS SWEEP
+            # ================================================================================
+            counter = 1;
+            
+            for (w = 1:length(dia)) { 
+                wid = dia(w);
+                        
+                    setnamed('pillar', "radius", wid/2);            
+                    
+                    ?"Running "+num2str(counter)+" out of "+num2str(total);  
+                    ?"Diameter: "+num2str(wid/nm);                    
+                    run;
+                    
+                    
+                    T = transmission('transmission'); # get transmission spectra
+                    nEx= matrix(frq_point,1);
+                    nEy = matrix(frq_point,1);
+                    Ex = matrix(frq_point,1);
+                    Ey = matrix(frq_point,1);
+                    Ez = matrix(frq_point,1);
+                    
+                    for (i = 1:frq_point) {
+                        E = farfieldexact('transmission',0,0,1e-4,i);
+                        Ex(i) = E(1); Ey(i) = E(2);
+                        nEx(i) = Ex(i)/REF_Ex(i);  # normalized (to the case of only substrate) electric field
+                        nEy(i) = Ey(i)/REF_Ex(i);
+                    }
+                    
+                    matlabsave("phases_"+"H="+num2str(H/nm)+"_U="+num2str(U/nm)+"_"+num2str(counter),lambda, Ex, Ey,nEx, nEy, T,H,U,wid);	    
+                    switchtolayout;
+                    counter = counter + 1;
+            }
+        }
+    }
+
+}
+
+
+
+# call matlab function to count required time for this simulation
+#matlab('simulation_time=toc');
+#matlabget(simulation_time);
+#?'Total elapsed time: ' + num2str(simulation_time) + 's';
+
+
+

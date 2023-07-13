@@ -1,0 +1,14 @@
+name: pylum # conda environment name
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8
+  - jupyterlab
+  - ipython
+  - ipykernel
+  - numpy
+  - pandas
+  - scipy
+  - matplotlib
+  - scikit-image
