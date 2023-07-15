@@ -90,7 +90,6 @@ class Pylum(lumapi.FDTD):
             self.setmaterial(Mat_add, 'name', mat_name)
         self.setmaterial(mat_name, 'sampled data', complex_sampled)
             
-
     def add_planewave(self, sname: str='source',
                       inj_axis: str='z-axis',
                       direc: str='Forward',
@@ -99,7 +98,7 @@ class Pylum(lumapi.FDTD):
                       x: float=0, y: float=0, z: float=-200e-9,
                       lambda_st: float=400e-9, 
                       lambda_ed: float=800e-9):
-        self.addplane
+        self.addplane()
         self.set('name', sname) 
         self.set('injection axis', inj_axis)
         self.set('direction', direc) 
@@ -113,15 +112,15 @@ class Pylum(lumapi.FDTD):
 
     def set_FDTD(self,
                 dim: str='3D',
-                xlb='Periodic', xub='Periodic',
-                ylb='Periodic', yub='Periodic',
-                zlb='PML', zub='PML',
-                x=0, y=0,
-                mesh_type='auto non-uniform',
-                mesh_acc=2,
-                dt_stb_factor=0.95,
-                sim_time=1000e-14,
-                auto_shut_min=0.5e-4):
+                xlb: str='Periodic', xub: str='Periodic',
+                ylb: str='Periodic', yub: str='Periodic',
+                zlb: str='PML', zub: str='PML',
+                x: float=0, y: float=0,
+                mesh_type: str='auto non-uniform',
+                mesh_acc: int=2,
+                dt_stb_factor: float=0.95,
+                sim_time: float=1000e-14,
+                auto_shut_min: float=0.5e-4):
         self.addfdtd()
         self.select('FDTD')
         self.set('dimension', dim)
@@ -139,37 +138,23 @@ class Pylum(lumapi.FDTD):
         self.set('simulation time', sim_time)
         self.set('auto shutoff min', auto_shut_min)
 
-# function add_monitor(mname, mtype,
-#     ov_glob_m, iswlinspace, frq_list,
-#     issrclim, x, y) {
-#     addprofile
-#     set('name', mname) 
-#     set('monitor type', mtype)
-#     set('override global monitor settings', ov_glob_m) 
-#     set('use wavelength spacing', iswlinspace)
-#     set('frequency points', frq_list) 
-#     set('use source limits', issrclim)
-#     set('x', x) 
-#     set('y', y) 
-# }
+    def add_monitor(self,
+                    mname: str, mtype: str,
+                    ov_glob_m: bool=True, 
+                    iswlinspace: bool=True, 
+                    frq_list: np.ndarray=np.array([400e-9, 800e-9]),
+                    issrclim: bool=True, 
+                    x: float=0, y: float=0):
+        self.addprofile()
+        self.set('name', mname) 
+        self.set('monitor type', mtype)
+        self.set('override global monitor settings', ov_glob_m) 
+        self.set('use wavelength spacing', iswlinspace)
+        self.set('frequency points', frq_list) 
+        self.set('use source limits', issrclim)
+        self.set('x', x) 
+        self.set('y', y) 
 
-
-
-# function add_rect(name, x, y, material) {
-#     addrect
-#     set('name', name)
-#     set('x', x) 
-#     set('y', y) 
-#     set('material', material)   
-# }
-
-# function add_circ(name, x, y, material){
-#     addcircle
-#     set('name', name)
-#     set('x', x) 
-#     set('y', y) 
-#     set('material', material)      
-# }
 
 
 # function unitcell_dependency(unitcell, src_name){
@@ -278,19 +263,6 @@ class Pylum(lumapi.FDTD):
 #     }
 
 # }
-
-
-
-# # call matlab function to count required time for this simulation
-# #matlab('simulation_time=toc')
-# #matlabget(simulation_time)
-# #?'Total elapsed time: ' + num2str(simulation_time) + 's'
-
-
-
-
-
-
 
 
 
