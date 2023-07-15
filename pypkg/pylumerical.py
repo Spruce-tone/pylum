@@ -31,6 +31,8 @@ class Pylum(lumapi.FDTD):
         self.switchtolayout()
         self.deleteall()
         self.update_material_lib()
+        self.set_FDTD()
+        self.add_planewave()
 
     def define_vars(self):
         self.m = 1
@@ -109,6 +111,33 @@ class Pylum(lumapi.FDTD):
         self.set('wavelength start', lambda_st)
         self.set('wavelength stop', lambda_ed)
 
+    def set_FDTD(self,
+                dim: str='3D',
+                xlb='Periodic', xub='Periodic',
+                ylb='Periodic', yub='Periodic',
+                zlb='PML', zub='PML',
+                x=0, y=0,
+                mesh_type='auto non-uniform',
+                mesh_acc=2,
+                dt_stb_factor=0.95,
+                sim_time=1000e-14,
+                auto_shut_min=0.5e-4):
+        self.addfdtd()
+        self.select('FDTD')
+        self.set('dimension', dim)
+        self.set('x min bc', xlb)
+        self.set('x max bc', xub)
+        self.set('y min bc', ylb)
+        self.set('y max bc', yub)
+        self.set('z min bc', zlb)
+        self.set('z max bc', zub)
+        self.set('x', x) 
+        self.set('y', y) 
+        self.set('mesh type', mesh_type)
+        self.set('mesh accuracy', mesh_acc)
+        self.set('dt stability factor', dt_stb_factor)
+        self.set('simulation time', sim_time)
+        self.set('auto shutoff min', auto_shut_min)
 
 # function add_monitor(mname, mtype,
 #     ov_glob_m, iswlinspace, frq_list,
@@ -124,27 +153,7 @@ class Pylum(lumapi.FDTD):
 #     set('y', y) 
 # }
 
-# function set_mesh(dim, xlb, xub,
-# ylb, yub, zlb, zub, x, y,
-# mesh_type, mesh_acc, dt_stb_factor,
-# sim_time, auto_shut_min){
-#     addfdtd
-#     select('FDTD')
-#     set('dimension', dim)
-#     set('x min bc', xlb)
-#     set('x max bc', xub)
-#     set('y min bc', ylb)
-#     set('y max bc', yub)
-#     set('z min bc', zlb)
-#     set('z max bc', zub)
-#     set('x', x) 
-#     set('y', y) 
-#     set('mesh type', mesh_type)
-#     set('mesh accuracy', mesh_acc)
-#     set('dt stability factor', dt_stb_factor)
-#     set('simulation time', sim_time)
-#     set('auto shutoff min', auto_shut_min)
-# }
+
 
 # function add_rect(name, x, y, material) {
 #     addrect
