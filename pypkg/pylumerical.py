@@ -89,105 +89,107 @@ class Pylum(lumapi.FDTD):
         self.setmaterial(mat_name, 'sampled data', complex_sampled)
             
 
+    def add_planewave(self, sname: str='source',
+                      inj_axis: str='z-axis',
+                      direc: str='Forward',
+                      pol_angle: float=0,
+                      phase: float=0,
+                      x: float=0, y: float=0, z: float=-200e-9,
+                      lambda_st: float=400e-9, 
+                      lambda_ed: float=800e-9):
+        self.addplane
+        self.set('name', sname) 
+        self.set('injection axis', inj_axis)
+        self.set('direction', direc) 
+        self.set('polarization angle', pol_angle)
+        self.set('phase', phase)
+        self.set('x', x) 
+        self.set('y', y) 
+        self.set('z', z) 
+        self.set('wavelength start', lambda_st)
+        self.set('wavelength stop', lambda_ed)
 
-
-
-
-# function add_planewave(sname, inj_axis, direc, pangle, 
-# phase, x, y, z, wst, wed) {
-#     addplane;
-#     set('name', sname); 
-#     set('injection axis', inj_axis);
-#     set('direction', direc); 
-#     set('polarization angle', pangle);
-#     set('phase', phase);
-#     set('x', x); 
-#     set('y', y); 
-#     set('z', z); 
-#     set('wavelength start', wst);
-#     set('wavelength stop', wed);
-# }
 
 # function add_monitor(mname, mtype,
 #     ov_glob_m, iswlinspace, frq_list,
 #     issrclim, x, y) {
-#     addprofile;
-#     set('name', mname); 
-#     set('monitor type', mtype);
-#     set('override global monitor settings', ov_glob_m); 
-#     set('use wavelength spacing', iswlinspace);
-#     set('frequency points', frq_list); 
-#     set('use source limits', issrclim);
-#     set('x', x); 
-#     set('y', y); 
+#     addprofile
+#     set('name', mname) 
+#     set('monitor type', mtype)
+#     set('override global monitor settings', ov_glob_m) 
+#     set('use wavelength spacing', iswlinspace)
+#     set('frequency points', frq_list) 
+#     set('use source limits', issrclim)
+#     set('x', x) 
+#     set('y', y) 
 # }
 
 # function set_mesh(dim, xlb, xub,
 # ylb, yub, zlb, zub, x, y,
 # mesh_type, mesh_acc, dt_stb_factor,
 # sim_time, auto_shut_min){
-#     addfdtd;
-#     select('FDTD');
-#     set('dimension', dim);
-#     set('x min bc', xlb);
-#     set('x max bc', xub);
-#     set('y min bc', ylb);
-#     set('y max bc', yub);
-#     set('z min bc', zlb);
-#     set('z max bc', zub);
-#     set('x', x); 
-#     set('y', y); 
-#     set('mesh type', mesh_type);
-#     set('mesh accuracy', mesh_acc);
-#     set('dt stability factor', dt_stb_factor);
-#     set('simulation time', sim_time);
-#     set('auto shutoff min', auto_shut_min);
+#     addfdtd
+#     select('FDTD')
+#     set('dimension', dim)
+#     set('x min bc', xlb)
+#     set('x max bc', xub)
+#     set('y min bc', ylb)
+#     set('y max bc', yub)
+#     set('z min bc', zlb)
+#     set('z max bc', zub)
+#     set('x', x) 
+#     set('y', y) 
+#     set('mesh type', mesh_type)
+#     set('mesh accuracy', mesh_acc)
+#     set('dt stability factor', dt_stb_factor)
+#     set('simulation time', sim_time)
+#     set('auto shutoff min', auto_shut_min)
 # }
 
 # function add_rect(name, x, y, material) {
-#     addrect;
-#     set('name', name);
-#     set('x', x); 
-#     set('y', y); 
-#     set('material', material);   
+#     addrect
+#     set('name', name)
+#     set('x', x) 
+#     set('y', y) 
+#     set('material', material)   
 # }
 
 # function add_circ(name, x, y, material){
-#     addcircle;
-#     set('name', name);
-#     set('x', x); 
-#     set('y', y); 
-#     set('material', material);      
+#     addcircle
+#     set('name', name)
+#     set('x', x) 
+#     set('y', y) 
+#     set('material', material)      
 # }
 
 
 # function unitcell_dependency(unitcell, src_name){
 #     # unit cell size dependent model setting
-#     setnamed(src_name, 'x span', unitcell*2);
-#     setnamed(src_name, 'y span', unitcell*2);
-#     setnamed('transmission', 'x span', unitcell*2);
-#     setnamed('transmission', 'y span', unitcell*2);
-#     setnamed('FDTD', 'x span', unitcell);
-#     setnamed('FDTD', 'y span', unitcell);
-#     setnamed('substrate', 'x span', unitcell*2);
-#     setnamed('substrate', 'y span', unitcell*2);
+#     setnamed(src_name, 'x span', unitcell*2)
+#     setnamed(src_name, 'y span', unitcell*2)
+#     setnamed('transmission', 'x span', unitcell*2)
+#     setnamed('transmission', 'y span', unitcell*2)
+#     setnamed('FDTD', 'x span', unitcell)
+#     setnamed('FDTD', 'y span', unitcell)
+#     setnamed('substrate', 'x span', unitcell*2)
+#     setnamed('substrate', 'y span', unitcell*2)
 # }
 
 
 # function height_dependency(height){
 #     # height size dependent model setting
-#     um = 1e-6;
-#     nm = 1e-9;
+#     um = 1e-6
+#     nm = 1e-9
     
-#     setnamed('FDTD', 'z max', height + 1*um);
-#     setnamed('FDTD', 'z min', -1*um);
-#     setnamed('transmission', 'z max', height + 200*nm);
+#     setnamed('FDTD', 'z max', height + 1*um)
+#     setnamed('FDTD', 'z min', -1*um)
+#     setnamed('transmission', 'z max', height + 200*nm)
     
-#     setnamed('pillar', 'z min', 0); 
-#     setnamed('pillar', 'z max', height);
+#     setnamed('pillar', 'z min', 0) 
+#     setnamed('pillar', 'z max', height)
     
-#     setnamed('substrate', 'z max', 0);
-#     setnamed('substrate', 'z min', -2*um);
+#     setnamed('substrate', 'z max', 0)
+#     setnamed('substrate', 'z min', -2*um)
 
 # }
 
@@ -195,73 +197,73 @@ class Pylum(lumapi.FDTD):
 
 # function screening(unit_cell, height, src_name, 
 # dia, frq_point, lambda, total) {
-#     ucell_len = length(unit_cell);
-#     hlen = length(height);
-#     nm = 1e-9;
-#     um = 1e-6;
+#     ucell_len = length(unit_cell)
+#     hlen = length(height)
+#     nm = 1e-9
+#     um = 1e-6
     
 #     for (idx=1:ucell_len){
-#         U = unit_cell(idx);
-#         unitcell_dependency(unitcell=U, src_name=src_name);
+#         U = unit_cell(idx)
+#         unitcell_dependency(unitcell=U, src_name=src_name)
         
 #         for (jdx=1:hlen) {
-#             H = height(jdx);
-#             height_dependency(H);
+#             H = height(jdx)
+#             height_dependency(H)
             
-#             ?'Running reference';
-#             select('pillar');
-#             set('enabled', 0);
-#             run;
+#             ?'Running reference'
+#             select('pillar')
+#             set('enabled', 0)
+#             run
            
-#             T = transmission('transmission'); # get transmission spectra
-#             REF_phase_Ex = matrix(frq_point,1);
-#             REF_phase_Ey = matrix(frq_point,1);
-#             REF_Ex = matrix(frq_point,1);
-#             REF_Ey = matrix(frq_point,1);
-#             REF_Ez = matrix(frq_point,1);
+#             T = transmission('transmission') # get transmission spectra
+#             REF_phase_Ex = matrix(frq_point,1)
+#             REF_phase_Ey = matrix(frq_point,1)
+#             REF_Ex = matrix(frq_point,1)
+#             REF_Ey = matrix(frq_point,1)
+#             REF_Ez = matrix(frq_point,1)
             
 #             for (i = 1:frq_point) {
-#                 E = farfieldexact('transmission',0,0,1e-4,i); # For normalization, record farfield eletric field in the case of no structure.
-#                 REF_Ex(i) = E(1); REF_Ey(i) = E(2);  
+#                 E = farfieldexact('transmission',0,0,1e-4,i) # For normalization, record farfield eletric field in the case of no structure.
+#                 REF_Ex(i) = E(1) REF_Ey(i) = E(2)  
 #             }
-#             matlabsave("REF_phase"+"_U="+num2str(unitcell(idx)/nm),lambda,REF_Ex,REF_Ey,T,H,U);	    
+#             matlabsave("REF_phase"+"_U="+num2str(unitcell(idx)/nm),lambda,REF_Ex,REF_Ey,T,H,U)	    
             
-#             switchtolayout;    
+#             switchtolayout    
             
-#             select('pillar');
-#             set('enabled', 1);
+#             select('pillar')
+#             set('enabled', 1)
             
 #             # PARAMETERS SWEEP
 #             # ================================================================================
-#             counter = 1;
+#             counter = 1
             
 #             for (w = 1:length(dia)) { 
-#                 wid = dia(w);
+#                 wid = dia(w)
                         
-#                     setnamed('pillar', "radius", wid/2);            
+#                     setnamed('pillar', "radius", wid/2)            
                     
-#                     ?"Running "+num2str(counter)+" out of "+num2str(total);  
-#                     ?"Diameter: "+num2str(wid/nm);                    
-#                     run;
+#                     ?"Running "+num2str(counter)+" out of "+num2str(total)  
+#                     ?"Diameter: "+num2str(wid/nm)                    
+#                     run
                     
                     
-#                     T = transmission('transmission'); # get transmission spectra
-#                     nEx= matrix(frq_point,1);
-#                     nEy = matrix(frq_point,1);
-#                     Ex = matrix(frq_point,1);
-#                     Ey = matrix(frq_point,1);
-#                     Ez = matrix(frq_point,1);
+#                     T = transmission('transmission') # get transmission spectra
+#                     nEx= matrix(frq_point,1)
+#                     nEy = matrix(frq_point,1)
+#                     Ex = matrix(frq_point,1)
+#                     Ey = matrix(frq_point,1)
+#                     Ez = matrix(frq_point,1)
                     
 #                     for (i = 1:frq_point) {
-#                         E = farfieldexact('transmission',0,0,1e-4,i);
-#                         Ex(i) = E(1); Ey(i) = E(2);
-#                         nEx(i) = Ex(i)/REF_Ex(i);  # normalized (to the case of only substrate) electric field
-#                         nEy(i) = Ey(i)/REF_Ex(i);
+#                         E = farfieldexact('transmission',0,0,1e-4,i)
+#                         Ex(i) = E(1) Ey(i) = E(2)
+#                         nEx(i) = Ex(i)/REF_Ex(i)  # normalized (to the case of only substrate) electric field
+#                         nEy(i) = Ey(i)/REF_Ex(i)
 #                     }
                     
-#                     matlabsave("phases_"+"H="+num2str(H/nm)+"_U="+num2str(U/nm)+"_"+num2str(counter),lambda, Ex, Ey,nEx, nEy, T,H,U,wid);	    
-#                     switchtolayout;
-#                     counter = counter + 1;
+#                     matlabsave("phases_"+"H="+num2str(H/nm)+"_U="+num2str(U/nm)+"_"+num2str(counter),lambda, Ex, Ey,nEx, nEy, T,H,U,wid)	    
+#                     switchtolayout
+#                     counter = counter + 1
 #             }
 #         }
 #     }
@@ -271,9 +273,9 @@ class Pylum(lumapi.FDTD):
 
 
 # # call matlab function to count required time for this simulation
-# #matlab('simulation_time=toc');
-# #matlabget(simulation_time);
-# #?'Total elapsed time: ' + num2str(simulation_time) + 's';
+# #matlab('simulation_time=toc')
+# #matlabget(simulation_time)
+# #?'Total elapsed time: ' + num2str(simulation_time) + 's'
 
 
 
