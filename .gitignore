@@ -3,6 +3,7 @@ lumerical_file
 example
 .ipynb_checkpoints
 
+tutorial
 pypkg/__pycache__
 
 CLEO_CircularPillars_Build_lib.lsf
