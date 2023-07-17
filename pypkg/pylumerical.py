@@ -2,6 +2,7 @@ import os, sys
 from os.path import join as opj
 import numpy as np
 import importlib.util
+from pypkg.utils import *
 
 #default path for current release 
 PYAPI_PATH = 'C:/Program Files/Lumerical/v221/api/python'
@@ -19,20 +20,17 @@ spec_win.loader.exec_module(lumapi)
 
 
 class Pylum(lumapi.FDTD):
-    def __init__(self):
+    def __init__(self, fname: str):
         super().__init__()
+        self.fname = fname
 
         self.define_vars()
-
         self.init_fdtd()
 
     def init_fdtd(self):
         self.addfdtd()
         self.switchtolayout()
         self.deleteall()
-        self.update_material_lib()
-        self.set_FDTD()
-        self.add_planewave()
 
     def define_vars(self):
         self.m = 1
@@ -67,7 +65,7 @@ class Pylum(lumapi.FDTD):
         material_list = os.listdir(self.MATLIB_PATH)
 
         for fname in material_list:
-            if fname.endswith('.txt'):
+            if (fname.endswith('.txt')) and (not self.materialexists(fname.split('.')[0])):
                 self.load_material(fname)
 
     def load_material(self, fname: str):
@@ -140,142 +138,105 @@ class Pylum(lumapi.FDTD):
 
     def add_monitor(self,
                     mname: str, mtype: str,
-                    ov_glob_m: bool=True, 
-                    iswlinspace: bool=True, 
-                    frq_list: np.ndarray=np.array([400e-9, 800e-9]),
-                    issrclim: bool=True, 
+                    ov_glob_m: int=1, 
+                    iswlinspace: int=1, 
+                    num_frq_points: int=100,
+                    issrclim: int=1, 
                     x: float=0, y: float=0):
         self.addprofile()
         self.set('name', mname) 
         self.set('monitor type', mtype)
         self.set('override global monitor settings', ov_glob_m) 
         self.set('use wavelength spacing', iswlinspace)
-        self.set('frequency points', frq_list) 
+        self.set('frequency points', num_frq_points) 
         self.set('use source limits', issrclim)
         self.set('x', x) 
         self.set('y', y) 
 
+    def screening(self, 
+                  unit_cell, height, src_name, 
+                dia, frq_point, lamb, total, mname):
+        ucell_len = len(unit_cell)
+        hlen = len(height)
 
+        for idx, ucell in enumerate(unit_cell):
+            self.unicell_dependency(ucell, src_name, mname)
+            for jdx, H in enumerate(height):
+                self.height_dependency(H, mname)
 
-# function unitcell_dependency(unitcell, src_name){
-#     # unit cell size dependent model setting
-#     setnamed(src_name, 'x span', unitcell*2)
-#     setnamed(src_name, 'y span', unitcell*2)
-#     setnamed('transmission', 'x span', unitcell*2)
-#     setnamed('transmission', 'y span', unitcell*2)
-#     setnamed('FDTD', 'x span', unitcell)
-#     setnamed('FDTD', 'y span', unitcell)
-#     setnamed('substrate', 'x span', unitcell*2)
-#     setnamed('substrate', 'y span', unitcell*2)
-# }
-
-
-# function height_dependency(height){
-#     # height size dependent model setting
-#     um = 1e-6
-#     nm = 1e-9
-    
-#     setnamed('FDTD', 'z max', height + 1*um)
-#     setnamed('FDTD', 'z min', -1*um)
-#     setnamed('transmission', 'z max', height + 200*nm)
-    
-#     setnamed('pillar', 'z min', 0) 
-#     setnamed('pillar', 'z max', height)
-    
-#     setnamed('substrate', 'z max', 0)
-#     setnamed('substrate', 'z min', -2*um)
-
-# }
+                self.reference_field(struct_name='pillar',
+                                     mname=mname,
+                                     lamb=lamb,
+                                     height=H,
+                                     unitcell=ucell)
 
 
 
-# function screening(unit_cell, height, src_name, 
-# dia, frq_point, lambda, total) {
-#     ucell_len = length(unit_cell)
-#     hlen = length(height)
-#     nm = 1e-9
-#     um = 1e-6
-    
-#     for (idx=1:ucell_len){
-#         U = unit_cell(idx)
-#         unitcell_dependency(unitcell=U, src_name=src_name)
+    def reference_field(self, struct_name: str,
+                        mname: str, lamb: np.ndarray,
+                        height: float, unitcell: float):
+        data = {}
+
+        self.select(struct_name)
+        self.set('enabled', False)
+        self.run()
+
+        T = self.transmission(mname)
+        REF_phase_Ex = np.zeros((len(lamb), 1))
+        REF_phase_Ey = np.zeros((len(lamb), 1))
+        REF_Ex = np.zeros((len(lamb), 1))
+        REF_Ey = np.zeros((len(lamb), 1))
+        REF_Ez = np.zeros((len(lamb), 1))
+
+        for ldx, w in enumerate(lamb):
+             # For normalization, record farfield eletric field in the case of no structure.
+            # E = self.farfieldexact(mname=mname, x=0, y=0, z=1e-4, opt={'f': ldx})
+            E = self.farfieldexact(mname, 0, 0, 1e-4, ldx+1)
+            REF_Ex[ldx] = E.squeeze()[0]
+            REF_Ey[ldx] = E.squeeze()[1]
+
+        data['wavelength'] = lamb
+        data['Ex_ref'] = REF_Ex
+        data['Ey_ref'] = REF_Ey
+        data['transmission'] = T
+        data['height'] = height
+        data['unit_cell'] = unitcell
+         
+        SavePickle(data, f'{self.fname}_ref_phase_[unit_cell]_{unitcell/self.nm}_[height]_{height/self.nm}')
+
+        # matlabsave("REF_phase"+"_U="+num2str(unitcell(idx)/nm),lambda,REF_Ex,REF_Ey,T,H,U);	    
+            
+        self.switchtolayout()    
+        self.select(struct_name)
+        self.set('enabled', True)
         
-#         for (jdx=1:hlen) {
-#             H = height(jdx)
-#             height_dependency(H)
-            
-#             ?'Running reference'
-#             select('pillar')
-#             set('enabled', 0)
-#             run
-           
-#             T = transmission('transmission') # get transmission spectra
-#             REF_phase_Ex = matrix(frq_point,1)
-#             REF_phase_Ey = matrix(frq_point,1)
-#             REF_Ex = matrix(frq_point,1)
-#             REF_Ey = matrix(frq_point,1)
-#             REF_Ez = matrix(frq_point,1)
-            
-#             for (i = 1:frq_point) {
-#                 E = farfieldexact('transmission',0,0,1e-4,i) # For normalization, record farfield eletric field in the case of no structure.
-#                 REF_Ex(i) = E(1) REF_Ey(i) = E(2)  
-#             }
-#             matlabsave("REF_phase"+"_U="+num2str(unitcell(idx)/nm),lambda,REF_Ex,REF_Ey,T,H,U)	    
-            
-#             switchtolayout    
-            
-#             select('pillar')
-#             set('enabled', 1)
-            
-#             # PARAMETERS SWEEP
-#             # ================================================================================
-#             counter = 1
-            
-#             for (w = 1:length(dia)) { 
-#                 wid = dia(w)
-                        
-#                     setnamed('pillar', "radius", wid/2)            
-                    
-#                     ?"Running "+num2str(counter)+" out of "+num2str(total)  
-#                     ?"Diameter: "+num2str(wid/nm)                    
-#                     run
-                    
-                    
-#                     T = transmission('transmission') # get transmission spectra
-#                     nEx= matrix(frq_point,1)
-#                     nEy = matrix(frq_point,1)
-#                     Ex = matrix(frq_point,1)
-#                     Ey = matrix(frq_point,1)
-#                     Ez = matrix(frq_point,1)
-                    
-#                     for (i = 1:frq_point) {
-#                         E = farfieldexact('transmission',0,0,1e-4,i)
-#                         Ex(i) = E(1) Ey(i) = E(2)
-#                         nEx(i) = Ex(i)/REF_Ex(i)  # normalized (to the case of only substrate) electric field
-#                         nEy(i) = Ey(i)/REF_Ex(i)
-#                     }
-                    
-#                     matlabsave("phases_"+"H="+num2str(H/nm)+"_U="+num2str(U/nm)+"_"+num2str(counter),lambda, Ex, Ey,nEx, nEy, T,H,U,wid)	    
-#                     switchtolayout
-#                     counter = counter + 1
-#             }
-#         }
-#     }
+    def unicell_dependency(self, unitcell, src_name, mname):
+        # unit cell size dependent model setting
+        self.setnamed(src_name, 'x span', unitcell*2)
+        self.setnamed(src_name, 'y span', unitcell*2)
+        # self.setnamed('transmission', 'x span', unitcell*2)
+        # self.setnamed('transmission', 'y span', unitcell*2)
+        self.setnamed(mname, 'x span', unitcell)
+        self.setnamed(mname, 'y span', unitcell)
+        self.setnamed('FDTD', 'x span', unitcell)
+        self.setnamed('FDTD', 'y span', unitcell)
+        self.setnamed('substrate', 'x span', unitcell*2)
+        self.setnamed('substrate', 'y span', unitcell*2)
 
-# }
+    def height_dependency(self, height, mname):
+        # height size dependent model setting
+        self.setnamed('FDTD', 'z max', height + 1*self.um)
+        self.setnamed('FDTD', 'z min', -1*self.um)
+        # self.setnamed('transmission', 'z', height + 200*self.nm)
+        self.setnamed(mname, 'z', height + 200*self.nm)
+        self.setnamed('pillar', 'z min', 0) 
+        self.setnamed('pillar', 'z max', height)
+        self.setnamed('substrate', 'z max', 0)
+        self.setnamed('substrate', 'z min', -2*self.um)
 
 
 
 
 
-    # lamb = np.linspace(-450*nm, 450*nm, 100)
-    # freq_point = len(lamb)
 
-    # height = 600*nm
-    # unitcell = 200*nm
-    # dia = np.linspace(50*nm, 190*nm, 5)
 
-    # mname = 'Transmission' # monitor name
-    # total = len(height) * len(unitcell) * len(dia)
-
-    # print(fdtd.materialexists('TiO2'))

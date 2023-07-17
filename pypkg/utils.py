@@ -1,5 +1,5 @@
 from ctypes import Union
-from re import L
+import pickle
 import numpy as np
 from typing import Union, Tuple, List
 from scipy.special import jv, j1
@@ -332,4 +332,18 @@ def axis_label(ax, **kwargs):
     if kwargs.get('set_title', None) is not None:
         ax.set_title(kwargs.get('set_title', None))    
     return ax
+
+# general functions
+def SavePickle(obj, path):
+    if path.endswith('.pickle'):
+        pass
+    else:
+        path = path + '.pickle'
+
+    with open(path, 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+def LoadPickle(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
