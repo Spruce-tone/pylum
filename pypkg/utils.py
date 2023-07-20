@@ -4,6 +4,7 @@ import numpy as np
 from typing import Union, Tuple, List
 from scipy.special import jv, j1
 import matplotlib.pyplot as plt
+from itertools import product
 
 def ucomb(x: Union[np.ndarray, int]) -> Union[np.ndarray, int]:
     '''
@@ -346,4 +347,7 @@ def SavePickle(obj, path):
 def LoadPickle(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
+    
+def dict_product(dicts: dict): 
+    return (dict(zip(dicts, x)) for x in product(*dicts.values()))
 

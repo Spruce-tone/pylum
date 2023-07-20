@@ -1,9 +1,11 @@
 import os, sys
 from os.path import join as opj
 import numpy as np
+import pandas as pd
 import importlib.util
 from pypkg.utils import *
 from typing import Union, List
+from tqdm.autonotebook import tqdm
 
 #default path for current release 
 PYAPI_PATH = 'C:/Program Files/Lumerical/v221/api/python'
@@ -75,12 +77,12 @@ class Pylum(lumapi.FDTD):
         self.set('y', y)
         self.set('material', material)
 
-    def add_struct(self, struct_type: str='pillar',
+    def add_struct(self, struct_type: str='circle',
                    lattice: str='square', 
                    x: float=0, y: float=0, 
                    material: str='SiO2 (Glass) - Palik'):
         
-        if struct_type=='pillar':
+        if struct_type=='circle':
             self.struct_type = struct_type
 
             if lattice=='square':
@@ -199,7 +201,7 @@ class Pylum(lumapi.FDTD):
         self.set('x', x) 
         self.set('y', y) 
 
-    def simul_span_setting(self, FDTD_height_offset: float=None,
+    def simul_span_params(self, FDTD_height_offset: float=None,
                            source_depth: float=None,
                            substrate_depth: float=None,
                            T_monitor_height: float=None,
@@ -233,7 +235,7 @@ class Pylum(lumapi.FDTD):
 
         self.far_field_height = far_field_height
 
-    def size_dependency(self, period: float, height: float):
+    def simul_span_setting(self, period: float, height: float):
         # Source
         self.setnamed(self.source_name, 'x span', period*2)
         self.setnamed(self.source_name, 'y span', period*2)
@@ -255,71 +257,97 @@ class Pylum(lumapi.FDTD):
         self.setnamed('FDTD', 'z max', height + self.FDTD_height_offset)
         self.setnamed('FDTD', 'z min', -self.FDTD_height_offset)
 
-        # Substrate setting 
-        self.setnamed(self.substrate_name, 'x span', period*2)
-        self.setnamed(self.substrate_name, 'y span', period*2)
-        self.setnamed(self.substrate_name, 'z max', 0)
-        self.setnamed(self.substrate_name, 'z min', self.substrate_depth)
 
-        # Structure setting
-        if self.struct_type=='pillar':
+    def set_sweep_params(self, data: dict):
+        if self.struct_type=='circle':
             if self.lattice=='square':
+                df = pd.DataFrame(dict_product(data))
+                df = self.df_unique_indexing(df=df, cols=None)
+
+                # physical size limit
+                df = df.loc[df.diameter < df.period, :]
+                df.drop(['material'], axis=1, inplace=True)
+
+                self.sweep_df = df
+                
+        self.structure_material = [struct_mat[0] for struct_mat in data['material']]
+        self.substrate_material = [struct_mat[1] for struct_mat in data['material']]
+        self.material_idx = list(range(len(data['material'])))
+
+    def set_sweep_structure(self, struct_mat, sub_mat, sweep_params):
+        if self.struct_type=='circle':
+            if self.lattice=='square':
+                self.setnamed(self.structure_name, 'material', struct_mat)
+                self.setnamed(self.structure_name, 'radius', sweep_params['diameter']/2)
                 self.setnamed(self.structure_name, 'z min', 0) 
-                self.setnamed(self.structure_name, 'z max', height)
+                self.setnamed(self.structure_name, 'z max', sweep_params['height'])
 
-
+                # Substrate setting 
+                self.setnamed(self.substrate_name, 'material', sub_mat)
+                self.setnamed(self.substrate_name, 'x span', sweep_params['period']*2)
+                self.setnamed(self.substrate_name, 'y span', sweep_params['period']*2)
+                self.setnamed(self.substrate_name, 'z max', 0)
+                self.setnamed(self.substrate_name, 'z min', self.substrate_depth)
 
     def screening(self):
-        ref_data = []
+        for mdx, struct_mat, sub_mat in tqdm(zip(self.material_idx, self.structure_material, self.substrate_material)):
+            ref_data = []
+            sim_data = []
 
-        for pdx, P in zip(self.period_idx, self.period):
-            for hdx, H in zip(self.height_idx, self.height):
-                self.size_dependency(period=P, height=H)
-
-                ref_data, REF_Ex, REF_Ey = self.reference_field(ref_data=ref_data,
-                                     height=H, height_idx=hdx, 
-                                     period=P, period_idx=pdx)
-                SavePickle(ref_data, f'{self.fname}_ref_phase.pickle')
+            for params in tqdm(self.sweep_df.to_dict('records')):
+                self.simul_span_setting(period=params['period'], height=params['height'])
+                self.set_sweep_structure(struct_mat=struct_mat,
+                                         sub_mat=sub_mat,
+                                         sweep_params=params)
                 
-                # for kdx, dia in enumerate(diameter):
-                #     self.setnamed('pillar', 'radius', dia/2)
-                #     self.run()
-
-                #     T = self.transmission(mname) # get transmission spectra
-                #     nEx= np.zeros((len(lamb),), dtype=np.complex128)
-                #     nEy = np.zeros((len(lamb),), dtype=np.complex128)
-                #     Ex = np.zeros((len(lamb),), dtype=np.complex128)
-                #     Ey = np.zeros((len(lamb),), dtype=np.complex128)
-                #     Ez = np.zeros((len(lamb),), dtype=np.complex128)
-                    
-                #     data = {}
-
-                #     for ldx, w in enumerate(lamb):
-                #         # For normalization, record farfield eletric field in the case of no structure.
-                #         E = self.farfieldexact(mname, 0, 0, 1e-4, ldx+1)
-                #         Ex[ldx] = E.squeeze()[0]
-                #         Ey[ldx] = E.squeeze()[1]
-                #         nEx[ldx] = Ex[ldx] / REF_Ex[ldx] # normalized (to the case of only substrate) electric field
-                #         nEy[ldx] = Ey[ldx] / REF_Ey[ldx]
+                ref_data, REF_Ex, REF_Ey = self.reference_field(ref_data=ref_data,
+                                                                sweep_params=params)
+                sim_data = self.field_simulation(sim_data=sim_data, sweep_params=params,
+                                                 REF_Ex=REF_Ex, REF_Ey=REF_Ey)
+                
+            SavePickle(pd.DataFrame(ref_data), f'{self.fname}_ref_phase_material_{mdx:02d}_{struct_mat}_{sub_mat}.pickle')
+            SavePickle(pd.DataFrame(sim_data), f'{self.fname}_phase_material_{mdx:02d}_{struct_mat}_{sub_mat}.pickle')
 
 
-                #         data['wavelength'] = lamb
-                #         data['Ex'] = Ex
-                #         data['nEx'] = nEx
-                #         data['Ey'] = Ey
-                #         data['nEy'] = nEy
-                #         data['transmission'] = T
-                #         data['height'] = H
-                #         data['unit_cell'] = P
-                #         data['diameter'] = dia
+    def field_simulation(self, REF_Ex: np.ndarray, REF_Ey: np.ndarray,
+                         sweep_params: dict, sim_data: List):
+        self.run()
 
-                #     SavePickle(data, f'{self.fname}_phase_[unit_cell]_{P/NM}_[height]_{H/NM}_[count]_{kdx:04d}')
-                #     self.switchtolayout()
+        Transmission = self.transmission(self.transmission_monitor_name)
+        Reflection = self.transmission(self.reflection_monitor_name)
+
+        nEx = np.zeros((self.num_frq,), dtype=np.complex128)
+        nEy = np.zeros((self.num_frq,), dtype=np.complex128)
+        Ex = np.zeros((self.num_frq,), dtype=np.complex128)
+        Ey = np.zeros((self.num_frq,), dtype=np.complex128)
+        Ez = np.zeros((self.num_frq,), dtype=np.complex128)
+    
+        for ldx, W, T, R in zip(self.lamb_idx, self.lamb, Transmission.squeeze(), Reflection.squeeze()):
+            # For normalization, record farfield eletric field in the case of no structure.
+            E = self.farfieldexact(self.transmission_monitor_name, 0, 0, self.far_field_height, ldx+1)
+            Ex[ldx] = E.squeeze()[0]
+            Ey[ldx] = E.squeeze()[1]
+            nEx[ldx] = Ex[ldx] / REF_Ex[ldx] # normalized (to the case of only substrate) electric field
+            nEy[ldx] = Ey[ldx] / REF_Ey[ldx]
+
+            update_params = sweep_params.copy()
+
+            update_params.update(
+                        {'wavelength_idx' : ldx,
+                        'wavelength' : W,
+                        'reflection' : -R,
+                        'transmission' : T,
+                        'Ex' : E.squeeze()[0],
+                        'nEx' : nEx[ldx],
+                        'Ey' : E.squeeze()[1],
+                        'nEy' : nEy[ldx]})
+            sim_data.append(update_params)
+
+        self.switchtolayout()
+        return sim_data
 
     def reference_field(self, ref_data: List,
-                        height: float, period: float,
-                        height_idx: int, period_idx: int):
-
+                        sweep_params: dict):
         self.select(self.structure_name)
         self.set('enabled', False)
         self.run()
@@ -339,27 +367,31 @@ class Pylum(lumapi.FDTD):
             REF_Ex[ldx] = E.squeeze()[0]
             REF_Ey[ldx] = E.squeeze()[1]
 
-            ref_data.append(
-                {'period_idx' : period_idx,
-                 'period' : period,
-                 'height_idx' :height_idx,
-                 'height' : height,
-                 'wavelength_idx' : ldx,
-                 'wavelength' : W,
-                 'reflection' : -R,
-                 'transmission' : T,
-                 'Ex_ref' : E.squeeze()[0],
-                 'Ey_ref' : E.squeeze()[1]})
-            
+            update_params = sweep_params.copy()
+
+            update_params.update(
+                        {'wavelength_idx' : ldx,
+                        'wavelength' : W,
+                        'reflection' : -R,
+                        'transmission' : T,
+                        'Ex_ref' : E.squeeze()[0],
+                        'Ey_ref' : E.squeeze()[1]})
+            ref_data.append(update_params)
+
         self.switchtolayout()    
         self.select(self.structure_name)
         self.set('enabled', True)
         return ref_data, REF_Ex, REF_Ey
-        
 
+    def df_unique_indexing(self, df: pd.DataFrame, cols: List=None):
+        if cols==None:
+            col_iter = df.columns
+        elif type(cols)==List:
+            col_iter = cols
 
-
-
+        for col in col_iter:
+            df[f'{col}_idx'] = df[col].map(lambda x: {val : idx for idx, val in enumerate(np.unique(df[col]))}[x])
+        return df
 
 
 
