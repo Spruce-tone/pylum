@@ -261,11 +261,23 @@ class Pylum(lumapi.FDTD):
     def set_sweep_params(self, data: dict):
         if self.struct_type=='circle':
             if self.lattice=='square':
-                df = pd.DataFrame(dict_product(data))
-                df = self.df_unique_indexing(df=df, cols=None)
+                data['diameter'] = [(x, idx) for idx, x in enumerate(data['diameter'])]
+                data['period'] = [(x, idx) for idx, x in enumerate(data['period'])]
+                data['height'] = [(x, idx) for idx, x in enumerate(data['height'])]
 
+                df = pd.DataFrame(dict_product(data))
+
+                df['diameter_idx'] = df['diameter'].map(lambda x: x[1]) 
+                df['diameter'] = df['diameter'].map(lambda x: x[0]) 
+
+                df['period_idx'] = df['period'].map(lambda x: x[1]) 
+                df['period'] = df['period'].map(lambda x: x[0]) 
+
+                df['height_idx'] = df['height'].map(lambda x: x[1]) 
+                df['height'] = df['height'].map(lambda x: x[0]) 
+                
                 # physical size limit
-                df = df.loc[df.diameter < df.period, :]
+                df = df.loc[df.diameter <= df.period, :]
                 df.drop(['material'], axis=1, inplace=True)
 
                 self.sweep_df = df
@@ -289,7 +301,11 @@ class Pylum(lumapi.FDTD):
                 self.setnamed(self.substrate_name, 'z max', 0)
                 self.setnamed(self.substrate_name, 'z min', self.substrate_depth)
 
-    def screening(self):
+    def screening(self, save_path: str=None):
+        if save_path==None:
+            save_path = f'./{self.fname}.fsp'
+        self.save(save_path)
+
         for mdx, struct_mat, sub_mat in tqdm(zip(self.material_idx, self.structure_material, self.substrate_material)):
             ref_data = []
             sim_data = []
@@ -305,8 +321,8 @@ class Pylum(lumapi.FDTD):
                 sim_data = self.field_simulation(sim_data=sim_data, sweep_params=params,
                                                  REF_Ex=REF_Ex, REF_Ey=REF_Ey)
                 
-            SavePickle(pd.DataFrame(ref_data), f'{self.fname}_ref_phase_material_{mdx:02d}_{struct_mat}_{sub_mat}.pickle')
-            SavePickle(pd.DataFrame(sim_data), f'{self.fname}_phase_material_{mdx:02d}_{struct_mat}_{sub_mat}.pickle')
+                SavePickle(pd.DataFrame(ref_data), f'{self.fname}_ref_phase_material_{mdx:02d}_{struct_mat}_{sub_mat}.pickle')
+                SavePickle(pd.DataFrame(sim_data), f'{self.fname}_phase_material_{mdx:02d}_{struct_mat}_{sub_mat}.pickle')
 
 
     def field_simulation(self, REF_Ex: np.ndarray, REF_Ey: np.ndarray,
@@ -316,13 +332,20 @@ class Pylum(lumapi.FDTD):
         Transmission = self.transmission(self.transmission_monitor_name)
         Reflection = self.transmission(self.reflection_monitor_name)
 
+        if self.num_frq==1:
+            Transmission = np.array([Transmission])
+            Reflection = np.array([Reflection])
+        elif self.num_frq > 1:
+            Transmission = Transmission.squeeze()
+            Reflection = Transmission.squeeze()  
+
         nEx = np.zeros((self.num_frq,), dtype=np.complex128)
         nEy = np.zeros((self.num_frq,), dtype=np.complex128)
         Ex = np.zeros((self.num_frq,), dtype=np.complex128)
         Ey = np.zeros((self.num_frq,), dtype=np.complex128)
         Ez = np.zeros((self.num_frq,), dtype=np.complex128)
     
-        for ldx, W, T, R in zip(self.lamb_idx, self.lamb, Transmission.squeeze(), Reflection.squeeze()):
+        for ldx, W, T, R in zip(self.lamb_idx, self.lamb, Transmission, Reflection):
             # For normalization, record farfield eletric field in the case of no structure.
             E = self.farfieldexact(self.transmission_monitor_name, 0, 0, self.far_field_height, ldx+1)
             Ex[ldx] = E.squeeze()[0]
@@ -355,13 +378,20 @@ class Pylum(lumapi.FDTD):
         Transmission = self.transmission(self.transmission_monitor_name)
         Reflection = self.transmission(self.reflection_monitor_name)
 
+        if self.num_frq==1:
+            Transmission = np.array([Transmission])
+            Reflection = np.array([Reflection])
+        elif self.num_frq > 1:
+            Transmission = Transmission.squeeze()
+            Reflection = Transmission.squeeze()          
+
         REF_phase_Ex = np.zeros((self.num_frq,), dtype=np.complex128)
         REF_phase_Ey = np.zeros((self.num_frq,), dtype=np.complex128)
         REF_Ex = np.zeros((self.num_frq,), dtype=np.complex128)
         REF_Ey = np.zeros((self.num_frq,), dtype=np.complex128)
         REF_Ez = np.zeros((self.num_frq,), dtype=np.complex128)
 
-        for ldx, W, T, R in zip(self.lamb_idx, self.lamb, Transmission.squeeze(), Reflection.squeeze()):
+        for ldx, W, T, R in zip(self.lamb_idx, self.lamb, Transmission, Reflection):
             # For normalization, record farfield eletric field in the case of no structure.
             E = self.farfieldexact(self.transmission_monitor_name, 0, 0, self.far_field_height, ldx+1)
             REF_Ex[ldx] = E.squeeze()[0]
@@ -382,16 +412,6 @@ class Pylum(lumapi.FDTD):
         self.select(self.structure_name)
         self.set('enabled', True)
         return ref_data, REF_Ex, REF_Ey
-
-    def df_unique_indexing(self, df: pd.DataFrame, cols: List=None):
-        if cols==None:
-            col_iter = df.columns
-        elif type(cols)==List:
-            col_iter = cols
-
-        for col in col_iter:
-            df[f'{col}_idx'] = df[col].map(lambda x: {val : idx for idx, val in enumerate(np.unique(df[col]))}[x])
-        return df
 
 
 
