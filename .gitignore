@@ -4,6 +4,7 @@ example
 .ipynb_checkpoints
 
 tutorial
+material_lib
 pypkg/__pycache__
 
 CLEO_CircularPillars_Build_lib.lsf
